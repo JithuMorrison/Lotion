@@ -1,0 +1,42 @@
+# macOS
+.DS_Store
+
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# next.js / build output
+.next/
+out/
+build/
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# env / secrets
+.env
+.env.*
+*.pem
+
+# debug logs
+app/dev.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# data dumps / local data
+data/
+
+# prisma generated client
+app/generated/prisma
+
+# vercel
+.vercel
