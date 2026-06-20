@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   useCreateBlockNote,
   SuggestionMenuController,
@@ -18,18 +19,22 @@ import {
   filterSuggestionItems,
   type PartialBlock,
 } from "@blocknote/core";
-import { Database as DatabaseIcon } from "lucide-react";
+import * as locales from "@blocknote/core/locales";
+import { withMultiColumn, locales as multiColumnLocales } from "@blocknote/xl-multi-column";
+import { Database as DatabaseIcon, FileText } from "lucide-react";
 import { databaseBlockSpec } from "@/components/editor/database-block";
-import { useCreateDatabase } from "@/lib/queries";
+import { pageBlockSpec } from "@/components/editor/page-block";
+import { useCreateDatabase, useCreatePage } from "@/lib/queries";
 import { useThemeStore } from "@/lib/stores";
 
 // Editor schema: default blocks + our custom inline "database" block.
-const schema = BlockNoteSchema.create({
+const schema = withMultiColumn(BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     database: databaseBlockSpec,
+    page: pageBlockSpec,
   },
-});
+}));
 
 // Debounced block editor. Persists the document 1000ms after the last edit and
 // flushes any pending change on tab close (beforeunload). Supports a `/database`
@@ -51,8 +56,14 @@ export function BlockEditor({
       Array.isArray(initialContent) && initialContent.length > 0
         ? (initialContent as PartialBlock[])
         : undefined,
+    dictionary: {
+      ...locales.en,
+      multi_column: multiColumnLocales.en,
+    } as any,
   });
   const createDatabase = useCreateDatabase();
+  const createPage = useCreatePage();
+  const router = useRouter();
   const theme = useThemeStore((s) => s.resolved);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -99,7 +110,7 @@ export function BlockEditor({
       title: "Database",
       subtext: "Embed a database with Kanban, Calendar, Table views",
       aliases: ["database", "db", "board", "kanban", "table"],
-      group: "Advanced",
+      group: "Embeds",
       icon: <DatabaseIcon className="size-4" />,
       onItemClick: async () => {
         const { databaseId } = await createDatabase.mutateAsync({
@@ -114,8 +125,63 @@ export function BlockEditor({
         );
       },
     };
+
+    const pageItem: DefaultReactSuggestionItem = {
+      title: "Page",
+      subtext: "Create a subpage inside this page",
+      aliases: ["page", "subpage"],
+      group: "Embeds",
+      icon: <FileText className="size-4" />,
+      onItemClick: async () => {
+        const page = await createPage.mutateAsync({
+          title: "Untitled",
+          parentId: pageId ?? null,
+        });
+        const ref = editor.getTextCursorPosition().block;
+        editor.replaceBlocks(
+          [ref],
+          [
+            {
+              type: "page" as any,
+              props: { pageId: page.id, title: page.title },
+            },
+          ]
+        );
+      },
+    };
+
+    const columnItems: DefaultReactSuggestionItem[] = [2, 3, 4, 5].map(
+      (n) => ({
+        title: `${n} Column`,
+        subtext: `${n} columns side by side`,
+        aliases: [`${n}col`, `${n}columns`, "columns"],
+        group: "Layout",
+        icon: <DatabaseIcon className="size-4" />,
+        onItemClick: () => {
+          const ref = editor.getTextCursorPosition().block;
+          editor.replaceBlocks(
+            [ref],
+            [
+              {
+                type: "columnList" as any,
+                children: Array.from({ length: n }, () => ({
+                  type: "column" as any,
+                  children: [{ type: "paragraph" as any }],
+                })),
+              },
+            ]
+          );
+        },
+      })
+    );
+    
     return filterSuggestionItems(
-      [...getDefaultReactSlashMenuItems(editor), databaseItem],
+      [
+        ...getDefaultReactSlashMenuItems(editor),
+        databaseItem,
+        pageItem,
+        ...columnItems,
+      ],
       query
     );
   };

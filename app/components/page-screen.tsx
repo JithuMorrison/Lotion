@@ -3,8 +3,8 @@
 import { useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Database as DatabaseIcon } from "lucide-react";
-import { usePage, useUpdatePage, useCreateDatabase } from "@/lib/queries";
+import { Database as DatabaseIcon, FileText } from "lucide-react";
+import { usePage, useUpdatePage, useCreateDatabase, usePageChildren } from "@/lib/queries";
 import { useEditorStore } from "@/lib/stores";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { PageHeader } from "@/components/editor/page-header";
@@ -96,7 +96,7 @@ export function PageScreen({ pageId }: { pageId: string }) {
                 databaseId={data.entryDatabaseId}
               />
             )}
-            <div className="mx-auto mt-4 max-w-3xl px-14">
+            <div className="mx-auto mt-4 max-w-6xl px-14">
               <ErrorBoundary>
                 <BlockEditor
                   key={pageId}
@@ -130,6 +130,7 @@ export function PageScreen({ pageId }: { pageId: string }) {
                 <DatabaseIcon className="size-4" />
                 Add a database
               </button>
+              <SubpageGallery pageId={pageId} />
             </div>
           </>
         )}
@@ -140,7 +141,7 @@ export function PageScreen({ pageId }: { pageId: string }) {
 
 function PageSkeleton() {
   return (
-    <div className="mx-auto max-w-3xl px-14 pt-16">
+    <div className="mx-auto max-w-6xl px-14 pt-16">
       <div className="mb-4 h-16 w-16 animate-pulse rounded-lg bg-muted" />
       <div className="mb-6 h-10 w-2/3 animate-pulse rounded bg-muted" />
       <div className="space-y-3">
@@ -150,6 +151,37 @@ function PageSkeleton() {
             className="h-4 animate-pulse rounded bg-muted"
             style={{ width: `${90 - i * 8}%` }}
           />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SubpageGallery({ pageId }: { pageId: string }) {
+  const { data: children } = usePageChildren(pageId);
+  const router = useRouter();
+  const subpages = children?.filter(
+    (p: any) => p.isDatabase && !p.isEntry
+  ) ?? [];
+  if (subpages.length === 0) return null;
+  return (
+    <div className="mt-8">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
+        {subpages.map((page: any) => (
+          <button
+            key={page.id}
+            onClick={() => router.push(`/p/${page.id}`)}
+            className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 text-left text-sm hover:border-muted-foreground/30 hover:bg-muted/50 transition-colors"
+          >
+            {page.icon ? (
+              <span className="text-lg">{page.icon}</span>
+            ) : (
+              <DatabaseIcon className="size-4 shrink-0 text-muted-foreground" />
+            )}
+            <span className="truncate font-medium">
+              {page.title || "Untitled"}
+            </span>
+          </button>
         ))}
       </div>
     </div>

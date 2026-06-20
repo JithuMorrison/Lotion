@@ -68,7 +68,7 @@ export function EntryProperties({
   };
 
   return (
-    <div className="mx-auto mt-4 max-w-3xl px-14">
+    <div className="mx-auto mt-4 max-w-4xl px-14">
       <div className="rounded-lg border border-border bg-muted/30 p-3">
         <div className="mb-1 flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

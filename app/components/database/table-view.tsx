@@ -59,25 +59,28 @@ export function TableView({
   }
 
   return (
-    <div className="overflow-auto px-4 pb-4">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <th className="px-3 py-2 font-medium">Name</th>
+    <div
+      className="overflow-auto px-4 pb-4 min-h-[500px]"
+      onMouseMove={(e) => e.stopPropagation()}
+    >
+      <div className="w-full border-collapse text-sm table">
+        <div className="table-header-group">
+          <div className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground table-row">
+            <div className="px-3 py-2 font-medium table-cell">Name</div>
             {props.map((p) => (
-              <th key={p.id} className="px-3 py-2 font-medium">
+              <div key={p.id} className="px-3 py-2 font-medium table-cell">
                 {p.name}
-              </th>
+              </div>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </div>
+        </div>
+        <div className="table-row-group">
           {rows.map((entry) => (
-            <tr
+            <div
               key={entry.id}
-              className="group border-b border-border hover:bg-muted/40"
+              className="group border-b border-border hover:bg-muted/40 table-row"
             >
-              <td className="px-3 py-1.5">
+              <div className="px-3 py-1.5 table-cell">
                 <button
                   onClick={() => router.push(`/p/${entry.pageId}`)}
                   className="flex items-center gap-1.5 font-medium hover:underline"
@@ -86,9 +89,9 @@ export function TableView({
                   {entry.title || "Untitled"}
                   <ExternalLink className="size-3 opacity-0 group-hover:opacity-60" />
                 </button>
-              </td>
+              </div>
               {props.map((p) => (
-                <td key={p.id} className="px-3 py-1.5">
+                <div key={p.id} className="px-3 py-1.5 table-cell">
                   <PropertyField
                     property={p}
                     value={entry.values[p.id]}
@@ -102,12 +105,12 @@ export function TableView({
                     }
                     compact
                   />
-                </td>
+                </div>
               ))}
-            </tr>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+      </div>
     </div>
   );
 }
