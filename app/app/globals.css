@@ -238,7 +238,7 @@
   background-image: url("https://www.pngall.com/wp-content/uploads/15/Notion-Logo-PNG-Cutout.png");
 }
 .bn-editor a[href*="jira"]::before {
-  background-image: url("https://vectorseek.com/wp-content/uploads/2023/01/vectorseek.com-Jira-Logo-Vector.png");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11.571 11.513H0a5.218 5.218 0 005.232 5.215h2.13v2.057A5.215 5.215 0 0012.575 24V12.518a1.005 1.005 0 00-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 005.215 5.214h2.129v2.058a5.218 5.218 0 005.215 5.214V6.757a1 1 0 00-1-1zM23.013 0H11.455a5.215 5.215 0 005.215 5.214h2.129v2.057a5.215 5.215 0 005.215 5.215V1a1 1 0 00-1.001-1z' fill='%232684FF'/%3E%3C/svg%3E");
 }
 .bn-editor a[href*="confluence"]::before {
   background-image: url("https://clipground.com/images/confluence-logo-8.png");

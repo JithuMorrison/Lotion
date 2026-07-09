@@ -178,7 +178,61 @@ export function BlockEditor({
         database_subtext: "Inline database",
       },
     },
+    uploadFile: async (file: File) => {
+      // Handle image paste/upload
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        return new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      }
+      return "";
+    },
   });
+
+  // Log clipboard data on paste
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const html = e.clipboardData?.getData("text/html");
+      const plain = e.clipboardData?.getData("text/plain");
+
+      console.log("========== AVAILABLE CLIPBOARD TYPES ==========");
+      console.log(e.clipboardData?.types);
+      console.log("\n========== PASTED HTML ==========");
+      console.log(html);
+      console.log("\n========== PASTED PLAIN TEXT ==========");
+      console.log(plain);
+
+      // Try to get Notion's custom format if available
+      const types = e.clipboardData?.types || [];
+      types.forEach((type) => {
+        if (type.includes("notion") || type.includes("application")) {
+          console.log(`\n========== ${type} ==========`);
+          try {
+            const data = e.clipboardData?.getData(type);
+            console.log(data);
+          } catch (err) {
+            console.log("(Unable to read this format)");
+          }
+        }
+      });
+
+      if (html) {
+        console.log("\n========== FORMATTED HTML ==========");
+        const div = document.createElement("div");
+        div.innerHTML = html;
+        console.log(div.innerHTML);
+      }
+      console.log("=====================================\n");
+    };
+
+    const editorElement = document.querySelector(".bn-editor");
+    if (editorElement) {
+      editorElement.addEventListener("paste", handlePaste as any);
+      return () => editorElement.removeEventListener("paste", handlePaste as any);
+    }
+  }, [editor]);
 
   const themeStore = useThemeStore();
   const theme = themeStore.theme === "system" ? "light" : themeStore.theme;
