@@ -141,6 +141,14 @@ function notionTitleToInlineContent(titleArr: any[][] | undefined): any[] {
           else if (fmt[0] === "c") styles.code = true;
         }
       }
+      // ProseMirror's code mark has excludes: '_', so it can't coexist with
+      // bold/italic/underline/strikethrough. When code is present, drop others.
+      if (styles.code) {
+        delete styles.bold;
+        delete styles.italic;
+        delete styles.underline;
+        delete styles.strikethrough;
+      }
       if (text) result.push({ type: "text", text, styles });
     }
   }
@@ -148,12 +156,16 @@ function notionTitleToInlineContent(titleArr: any[][] | undefined): any[] {
 }
 
 function notionTypeToBlockNote(value: NotionBlockValue): { type: string; props?: any } {
-  if (value.format?.toggleable) return { type: "toggleListItem" };
+  const isToggle = !!value.format?.toggleable;
   switch (value.type) {
-    case "header": return { type: "heading", props: { level: 1 } };
-    case "sub_header": return { type: "heading", props: { level: 2 } };
-    case "sub_sub_header": return { type: "heading", props: { level: 3 } };
-    case "text": return { type: "paragraph" };
+    case "header":
+      return { type: "heading", props: { level: 1, ...(isToggle ? { isToggleable: true } : {}) } };
+    case "sub_header":
+      return { type: "heading", props: { level: 2, ...(isToggle ? { isToggleable: true } : {}) } };
+    case "sub_sub_header":
+      return { type: "heading", props: { level: 3, ...(isToggle ? { isToggleable: true } : {}) } };
+    case "text":
+      return isToggle ? { type: "toggleListItem" } : { type: "paragraph" };
     case "bulleted_list": case "bulletedList": return { type: "bulletListItem" };
     case "numbered_list": case "numberedList": return { type: "numberedListItem" };
     case "to_do": return { type: "checkListItem", props: { checked: value.properties?.checked?.[0]?.[0] === "true" } };
@@ -197,16 +209,23 @@ function buildBlockTree(
 function parseNotionClipboard(data: string): PartialBlock[] {
   try {
     const parsed = JSON.parse(data);
-    const selections = parsed?.blockSelection?.blocks;
-    if (!Array.isArray(selections)) return [];
-    const result: PartialBlock[] = [];
-    for (const sel of selections) {
-      const blockMap = sel?.blockSubtree?.block;
-      if (!blockMap) continue;
-      const block = buildBlockTree(sel.blockId, blockMap, new Set());
-      if (block) result.push(block);
+
+    // notion-multi-text-production: { blockSelection: { blocks: [...] } }
+    // notion-blocks-v3-production: { blocks: [...] }
+    // Both formats use the same shape: array of { blockId, blockSubtree: { block: {...} } }
+    const selections = parsed?.blockSelection?.blocks || parsed?.blocks;
+    if (Array.isArray(selections)) {
+      const result: PartialBlock[] = [];
+      for (const sel of selections) {
+        const blockMap = sel?.blockSubtree?.block;
+        if (!blockMap) continue;
+        const block = buildBlockTree(sel.blockId, blockMap, new Set());
+        if (block) result.push(block);
+      }
+      return result;
     }
-    return result;
+
+    return [];
   } catch {
     return [];
   }
@@ -322,8 +341,9 @@ export function BlockEditor({
   // HTML-based paste when Notion data is not available.
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
-      const notionType = (e.clipboardData?.types || []).find((t) =>
-        t.includes("notion-multi-text")
+      const types = e.clipboardData?.types || [];
+      const notionType = types.find((t) =>
+        t.includes("notion-multi-text") || t.includes("notion-blocks-v3")
       );
       const notionData = notionType ? e.clipboardData?.getData(notionType) : null;
 
