@@ -259,3 +259,11 @@
 .bn-editor a[href*="observeinc.com"]::before {
   background-image: url("https://avatars.githubusercontent.com/u/32403552?s=200&v=4");
 }
+
+/* ── Canvas drawing block ── */
+.bn-canvas-block {
+  user-select: none;
+}
+.bn-canvas-block canvas {
+  touch-action: none;
+}

@@ -34,7 +34,7 @@ import {
 } from "@blocknote/core";
 import * as locales from "@blocknote/core/locales";
 import { withMultiColumn, locales as multiColumnLocales } from "@blocknote/xl-multi-column";
-import { Database as DatabaseIcon, FileText, Sigma } from "lucide-react";
+import { Database as DatabaseIcon, FileText, Sigma, Palette } from "lucide-react";
 import { createReactStyleSpec } from "@blocknote/react";
 
 // Keep equation as a style spec for backward compatibility with saved content
@@ -45,6 +45,7 @@ const EquationStyle = createReactStyleSpec(
 
 import { databaseBlockSpec } from "@/components/editor/database-block";
 import { pageBlockSpec } from "@/components/editor/page-block";
+import { canvasBlockSpec } from "@/components/editor/canvas-block";
 import { equationInlineSpec } from "@/components/editor/equation-inline";
 import { createReactBlockSpec } from "@blocknote/react";
 
@@ -74,6 +75,7 @@ const schema = withMultiColumn(BlockNoteSchema.create({
 
     database: databaseBlockSpec,
     page: pageBlockSpec,
+    canvas: canvasBlockSpec,
     mathEquation: legacyEquationBlockSpec,
   },
   inlineContentSpecs: {
@@ -620,11 +622,29 @@ export function BlockEditor({
         })
       );
 
+      // Canvas / drawing block
+      const canvasItem: DefaultReactSuggestionItem = {
+        title: "Canvas",
+        subtext: "Draw flowcharts and diagrams with pencil, eraser, colors",
+        aliases: ["canvas", "draw", "drawing", "flowchart", "diagram", "sketch", "paint"],
+        group: "Embeds",
+        icon: <Palette className="size-4" />,
+        onItemClick: () => {
+          const ref = editor.getTextCursorPosition().block;
+          editor.insertBlocks(
+            [{ type: "canvas" as any, props: { dataUrl: "" } }],
+            ref,
+            "after"
+          );
+        },
+      };
+
       return filterSuggestionItems(
         [
           ...getDefaultReactSlashMenuItems(editor),
           databaseItem,
           pageItem,
+          canvasItem,
           equationItem,
           ...columnItems,
         ],
