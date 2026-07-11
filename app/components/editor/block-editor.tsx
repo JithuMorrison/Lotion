@@ -86,6 +86,132 @@ const schema = withMultiColumn(BlockNoteSchema.create({
   },
 }));
 
+// Notion clipboard parsing — converts Notion's block tree to BlockNote PartialBlocks
+// with correct nesting for toggleable blocks and their child elements.
+
+interface NotionBlockValue {
+  id: string;
+  type: string;
+  properties?: Record<string, any[][]>;
+  content?: string[];
+  format?: { toggleable?: boolean };
+}
+
+interface NotionBlockEntry {
+  spaceId: string;
+  value: NotionBlockValue;
+}
+
+const INLINE_CONTENT_BLOCKS = new Set([
+  "paragraph", "heading", "bulletListItem", "numberedListItem",
+  "checkListItem", "toggleListItem", "codeBlock", "quote",
+]);
+
+function notionTitleToInlineContent(titleArr: any[][] | undefined): any[] {
+  if (!titleArr) return [];
+  const result: any[] = [];
+  for (const item of titleArr) {
+    if (typeof item === "string") {
+      if (item) result.push({ type: "text", text: item, styles: {} });
+      continue;
+    }
+    if (!Array.isArray(item)) continue;
+    const [text, formats] = item;
+    if (text === "‣") {
+      if (Array.isArray(formats)) {
+        for (const fmt of formats) {
+          if (Array.isArray(fmt) && fmt[0] === "lm" && fmt[1]) {
+            result.push({
+              type: "link",
+              href: fmt[1].href || "",
+              content: [{ type: "text", text: fmt[1].title || fmt[1].href || "" }],
+            });
+          }
+        }
+      }
+    } else if (typeof text === "string") {
+      const styles: Record<string, any> = {};
+      if (Array.isArray(formats)) {
+        for (const fmt of formats) {
+          if (!Array.isArray(fmt)) continue;
+          if (fmt[0] === "b") styles.bold = true;
+          else if (fmt[0] === "i") styles.italic = true;
+          else if (fmt[0] === "u") styles.underline = true;
+          else if (fmt[0] === "s") styles.strikethrough = true;
+          else if (fmt[0] === "c") styles.code = true;
+        }
+      }
+      if (text) result.push({ type: "text", text, styles });
+    }
+  }
+  return result;
+}
+
+function notionTypeToBlockNote(value: NotionBlockValue): { type: string; props?: any } {
+  if (value.format?.toggleable) return { type: "toggleListItem" };
+  switch (value.type) {
+    case "header": return { type: "heading", props: { level: 1 } };
+    case "sub_header": return { type: "heading", props: { level: 2 } };
+    case "sub_sub_header": return { type: "heading", props: { level: 3 } };
+    case "text": return { type: "paragraph" };
+    case "bulleted_list": case "bulletedList": return { type: "bulletListItem" };
+    case "numbered_list": case "numberedList": return { type: "numberedListItem" };
+    case "to_do": return { type: "checkListItem", props: { checked: value.properties?.checked?.[0]?.[0] === "true" } };
+    case "toggle": return { type: "toggleListItem" };
+    case "code": return { type: "codeBlock", props: { language: String(value.properties?.language?.[0]?.[0] || "plaintext") } };
+    case "quote": return { type: "quote" };
+    case "divider": return { type: "divider" };
+    case "callout": return { type: "paragraph" };
+    case "image": return { type: "image", props: { url: String(value.properties?.source?.[0]?.[0] || "") } };
+    default: return { type: "paragraph" };
+  }
+}
+
+function buildBlockTree(
+  blockId: string,
+  blockMap: Record<string, NotionBlockEntry>,
+  visited: Set<string>
+): PartialBlock | null {
+  if (visited.has(blockId)) return null;
+  visited.add(blockId);
+  const entry = blockMap[blockId];
+  if (!entry?.value) return null;
+  const value = entry.value;
+  const { type, props } = notionTypeToBlockNote(value);
+  const block: PartialBlock = { type: type as any, props } as any;
+  if (INLINE_CONTENT_BLOCKS.has(type)) {
+    block.content = notionTitleToInlineContent(value.properties?.title);
+  }
+  const childIds = value.content || [];
+  if (childIds.length > 0) {
+    const children: PartialBlock[] = [];
+    for (const childId of childIds) {
+      const child = buildBlockTree(childId, blockMap, visited);
+      if (child) children.push(child);
+    }
+    if (children.length > 0) block.children = children;
+  }
+  return block;
+}
+
+function parseNotionClipboard(data: string): PartialBlock[] {
+  try {
+    const parsed = JSON.parse(data);
+    const selections = parsed?.blockSelection?.blocks;
+    if (!Array.isArray(selections)) return [];
+    const result: PartialBlock[] = [];
+    for (const sel of selections) {
+      const blockMap = sel?.blockSubtree?.block;
+      if (!blockMap) continue;
+      const block = buildBlockTree(sel.blockId, blockMap, new Set());
+      if (block) result.push(block);
+    }
+    return result;
+  } catch {
+    return [];
+  }
+}
+
 // Toolbar button that inserts a KaTeX equation block below the current block
 function EquationToolbarButton() {
   const editor = useBlockNoteEditor();
@@ -191,46 +317,46 @@ export function BlockEditor({
     },
   });
 
-  // Log clipboard data on paste
+  // Handle Notion clipboard paste — uses Notion's block tree for correct nesting
+  // of toggleable blocks and their children. Falls back to BlockNote's default
+  // HTML-based paste when Notion data is not available.
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
-      const html = e.clipboardData?.getData("text/html");
-      const plain = e.clipboardData?.getData("text/plain");
+      const notionType = (e.clipboardData?.types || []).find((t) =>
+        t.includes("notion-multi-text")
+      );
+      const notionData = notionType ? e.clipboardData?.getData(notionType) : null;
 
-      console.log("========== AVAILABLE CLIPBOARD TYPES ==========");
-      console.log(e.clipboardData?.types);
-      console.log("\n========== PASTED HTML ==========");
-      console.log(html);
-      console.log("\n========== PASTED PLAIN TEXT ==========");
-      console.log(plain);
-
-      // Try to get Notion's custom format if available
-      const types = e.clipboardData?.types || [];
-      types.forEach((type) => {
-        if (type.includes("notion") || type.includes("application")) {
-          console.log(`\n========== ${type} ==========`);
+      if (notionData) {
+        const blocks = parseNotionClipboard(notionData);
+        if (blocks.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          const docBlocks = editor.document as any[];
+          let refBlock = docBlocks[docBlocks.length - 1];
           try {
-            const data = e.clipboardData?.getData(type);
-            console.log(data);
-          } catch (err) {
-            console.log("(Unable to read this format)");
+            const cursor = editor.getTextCursorPosition();
+            const matched = docBlocks.find((b) => b.id === cursor?.block?.id);
+            if (matched) refBlock = matched;
+          } catch {}
+          if (!refBlock) return;
+          const isEmpty =
+            refBlock.type === "paragraph" &&
+            (!refBlock.content || (refBlock.content as any[]).length === 0);
+          if (isEmpty) {
+            editor.replaceBlocks([refBlock], blocks);
+          } else {
+            editor.insertBlocks(blocks, refBlock, "after");
           }
+          return;
         }
-      });
-
-      if (html) {
-        console.log("\n========== FORMATTED HTML ==========");
-        const div = document.createElement("div");
-        div.innerHTML = html;
-        console.log(div.innerHTML);
       }
-      console.log("=====================================\n");
     };
 
     const editorElement = document.querySelector(".bn-editor");
     if (editorElement) {
-      editorElement.addEventListener("paste", handlePaste as any);
-      return () => editorElement.removeEventListener("paste", handlePaste as any);
+      editorElement.addEventListener("paste", handlePaste as any, true);
+      return () => editorElement.removeEventListener("paste", handlePaste as any, true);
     }
   }, [editor]);
 
