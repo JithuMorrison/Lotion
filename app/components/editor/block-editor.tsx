@@ -172,6 +172,20 @@ function urlToLinkLabel(href: string): string {
   }
 }
 
+// Notion color name → BlockNote textColor / backgroundColor values
+const NOTION_COLOR_MAP: Record<string, { textColor?: string; backgroundColor?: string }> = {
+  gray: { textColor: "gray" }, brown: { textColor: "brown" },
+  orange: { textColor: "orange" }, yellow: { textColor: "yellow" },
+  teal: { textColor: "green" }, green: { textColor: "green" },
+  blue: { textColor: "blue" }, purple: { textColor: "purple" },
+  pink: { textColor: "pink" }, red: { textColor: "red" },
+  gray_background: { backgroundColor: "gray" }, brown_background: { backgroundColor: "brown" },
+  orange_background: { backgroundColor: "orange" }, yellow_background: { backgroundColor: "yellow" },
+  teal_background: { backgroundColor: "green" }, green_background: { backgroundColor: "green" },
+  blue_background: { backgroundColor: "blue" }, purple_background: { backgroundColor: "purple" },
+  pink_background: { backgroundColor: "pink" }, red_background: { backgroundColor: "red" },
+};
+
 function notionTitleToInlineContent(titleArr: any[][] | undefined): any[] {
   if (!titleArr) return [];
   const result: any[] = [];
@@ -185,13 +199,18 @@ function notionTitleToInlineContent(titleArr: any[][] | undefined): any[] {
     if (text === "‣") {
       if (Array.isArray(formats)) {
         for (const fmt of formats) {
-          if (Array.isArray(fmt) && fmt[0] === "lm" && fmt[1]) {
-            const linkHref = fmt[1].href || "";
-            result.push({
-              type: "link",
-              href: linkHref,
-              content: [{ type: "text", text: urlToLinkLabel(linkHref), styles: {} }],
-            });
+          if (!Array.isArray(fmt) || !fmt[1]) continue;
+          // Only external links (lm format with http/https href); skip mentions,
+          // dates, and attachment: references which can't be resolved.
+          if (fmt[0] === "lm" && fmt[1].href) {
+            const linkHref = fmt[1].href;
+            if (linkHref.startsWith("http://") || linkHref.startsWith("https://")) {
+              result.push({
+                type: "link",
+                href: linkHref,
+                content: [{ type: "text", text: urlToLinkLabel(linkHref), styles: {} }],
+              });
+            }
           }
         }
       }
@@ -205,6 +224,10 @@ function notionTitleToInlineContent(titleArr: any[][] | undefined): any[] {
           else if (fmt[0] === "u") styles.underline = true;
           else if (fmt[0] === "s") styles.strike = true;
           else if (fmt[0] === "c") styles.code = true;
+          else if (fmt[0] === "h" && typeof fmt[1] === "string") {
+            const color = NOTION_COLOR_MAP[fmt[1]];
+            if (color) Object.assign(styles, color);
+          }
         }
       }
       // ProseMirror's code mark has excludes: '_', so it can't coexist with
@@ -382,6 +405,7 @@ export function BlockEditor({
       Array.isArray(initialContent) && initialContent.length > 0
         ? (initialContent as PartialBlock[])
         : undefined,
+    tabBehavior: "prefer-indent",
     dictionary: {
       ...locales.en,
       slash_menu: {
