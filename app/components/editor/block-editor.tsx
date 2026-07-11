@@ -107,6 +107,71 @@ const INLINE_CONTENT_BLOCKS = new Set([
   "checkListItem", "toggleListItem", "codeBlock", "quote",
 ]);
 
+// Generates a short, readable label for a URL based on its domain and path.
+// Confluence / Jira / Notion / ChatGPT / GitHub get domain-aware labels;
+// other URLs show the domain + first path segment.
+function urlToLinkLabel(href: string): string {
+  try {
+    const url = new URL(href);
+    const host = url.hostname;
+    const path = decodeURIComponent(url.pathname);
+    const segs = path.split("/").filter(Boolean);
+
+    if (host.includes("tekion.atlassian.net")) {
+      if (path.includes("/wiki/")) {
+        const pageSeg = segs.find((s) => !["wiki", "spaces", "pages"].includes(s) && s.match(/^\d/));
+        if (pageSeg) {
+          const titlePart = segs[segs.indexOf(pageSeg) + 1];
+          if (titlePart) {
+            return "Confluence: " + titlePart.replace(/\+/g, " ").replace(/-\d+$/, "");
+          }
+        }
+        return "Confluence: " + (segs[segs.length - 1] || "").replace(/\+/g, " ");
+      }
+      if (path.includes("/browse/")) {
+        const ticket = segs[segs.length - 1];
+        return "Jira: " + (ticket || "");
+      }
+      return "Atlassian";
+    }
+
+    if (host.includes("notion.so") || host.includes("notion.site")) {
+      const last = segs[segs.length - 1];
+      return "Notion: " + (last ? last.replace(/-/g, " ").replace(/^\w+\s/, "") : "page");
+    }
+
+    if (host.includes("chatgpt.com") || host.includes("chat.openai.com")) {
+      return "ChatGPT";
+    }
+
+    if (host.includes("observeinc.com")) {
+      return "Observe";
+    }
+
+    if (host.includes("github.com")) {
+      if (path.includes("/pull/")) {
+        const num = segs[segs.length - 1];
+        return "Pull Request #" + (num || "");
+      }
+      if (path.includes("/issues/")) {
+        const num = segs[segs.length - 1];
+        return "Issue #" + (num || "");
+      }
+      if (path.includes("/commit/")) {
+        return "Commit";
+      }
+      const repo = segs.slice(0, 2).join("/");
+      return repo ? "GitHub: " + repo : "GitHub";
+    }
+
+    // Fallback: domain + first meaningful path segment
+    const firstSeg = segs.find((s) => !s.match(/^\w{8}(-\w{4}){3}-\w{12}$/));
+    return firstSeg ? `${host}/${firstSeg}` : host;
+  } catch {
+    return href;
+  }
+}
+
 function notionTitleToInlineContent(titleArr: any[][] | undefined): any[] {
   if (!titleArr) return [];
   const result: any[] = [];
@@ -121,10 +186,11 @@ function notionTitleToInlineContent(titleArr: any[][] | undefined): any[] {
       if (Array.isArray(formats)) {
         for (const fmt of formats) {
           if (Array.isArray(fmt) && fmt[0] === "lm" && fmt[1]) {
+            const linkHref = fmt[1].href || "";
             result.push({
               type: "link",
-              href: fmt[1].href || "",
-              content: [{ type: "text", text: fmt[1].title || fmt[1].href || "" }],
+              href: linkHref,
+              content: [{ type: "text", text: urlToLinkLabel(linkHref), styles: {} }],
             });
           }
         }
@@ -137,17 +203,17 @@ function notionTitleToInlineContent(titleArr: any[][] | undefined): any[] {
           if (fmt[0] === "b") styles.bold = true;
           else if (fmt[0] === "i") styles.italic = true;
           else if (fmt[0] === "u") styles.underline = true;
-          else if (fmt[0] === "s") styles.strikethrough = true;
+          else if (fmt[0] === "s") styles.strike = true;
           else if (fmt[0] === "c") styles.code = true;
         }
       }
       // ProseMirror's code mark has excludes: '_', so it can't coexist with
-      // bold/italic/underline/strikethrough. When code is present, drop others.
+      // bold/italic/underline/strike. When code is present, drop others.
       if (styles.code) {
         delete styles.bold;
         delete styles.italic;
         delete styles.underline;
-        delete styles.strikethrough;
+        delete styles.strike;
       }
       if (text) result.push({ type: "text", text, styles });
     }
@@ -370,6 +436,27 @@ export function BlockEditor({
           }
           return;
         }
+      }
+
+      // Plain URL paste (no Notion data) — insert as a link with smart label
+      const plain = e.clipboardData?.getData("text/plain") || "";
+      const trimmed = plain.trim();
+      if (trimmed && trimmed.split(/\s+/).length === 1) {
+        try {
+          const url = new URL(trimmed);
+          if (url.protocol === "http:" || url.protocol === "https:") {
+            e.preventDefault();
+            e.stopPropagation();
+            editor.insertInlineContent([
+              {
+                type: "link",
+                href: trimmed,
+                content: [{ type: "text", text: urlToLinkLabel(trimmed), styles: {} }],
+              } as any,
+            ]);
+            return;
+          }
+        } catch {}
       }
     };
 

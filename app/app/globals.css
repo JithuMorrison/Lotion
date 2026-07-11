@@ -237,10 +237,12 @@
 .bn-editor a[href*="app.notion.com"]::before {
   background-image: url("https://www.pngall.com/wp-content/uploads/15/Notion-Logo-PNG-Cutout.png");
 }
-.bn-editor a[href*="jira"]::before {
+.bn-editor a[href*="jira"]::before,
+.bn-editor a[href*="tekion.atlassian.net/browse/"]::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11.571 11.513H0a5.218 5.218 0 005.232 5.215h2.13v2.057A5.215 5.215 0 0012.575 24V12.518a1.005 1.005 0 00-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 005.215 5.214h2.129v2.058a5.218 5.218 0 005.215 5.214V6.757a1 1 0 00-1-1zM23.013 0H11.455a5.215 5.215 0 005.215 5.214h2.129v2.057a5.215 5.215 0 005.215 5.215V1a1 1 0 00-1.001-1z' fill='%232684FF'/%3E%3C/svg%3E");
 }
-.bn-editor a[href*="confluence"]::before {
+.bn-editor a[href*="confluence"]::before,
+.bn-editor a[href*="tekion.atlassian.net/wiki/"]::before {
   background-image: url("https://clipground.com/images/confluence-logo-8.png");
   border-radius: 3px;
 }
@@ -253,4 +255,7 @@
 }
 .bn-editor a[href*="stackoverflow.com"]::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17.4 20.2v-5.8h1.9V22H3.7v-7.6h1.9v5.8h11.8z' fill='%23BCBBBB'/%3E%3Cpath d='M7.5 17.8h8V20h-8v-2.2zm.2-3l7.8 1.6-.4 2.1-7.8-1.7.4-2zm1-3.2l7.3 3.4-.9 1.9-7.2-3.4.8-1.9zm2-2.9l6.2 5.1-1.2 1.5-6.2-5.2 1.2-1.4zm3.8-3.7l4.8 6.4-1.5 1.2-4.8-6.5 1.5-1.1zM7.5 15.6h8v2.2h-8v-2.2z' fill='%23F48024'/%3E%3C/svg%3E");
+}
+.bn-editor a[href*="observeinc.com"]::before {
+  background-image: url("https://avatars.githubusercontent.com/u/32403552?s=200&v=4");
 }
