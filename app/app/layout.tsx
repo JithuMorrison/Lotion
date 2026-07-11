@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
+import "katex/dist/katex.min.css";
 import { Providers } from "@/components/providers";
 import { AppShell } from "@/components/app-shell";
 import { ConfirmHost } from "@/components/ui/confirm";

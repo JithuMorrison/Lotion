@@ -2,7 +2,7 @@
 
 cd app
 
-npm install
+yarn install
 
 echo 'DATABASE_URL="file:./prisma/dev.db"' > .env
 
@@ -10,6 +10,6 @@ npx prisma migrate deploy
 
 npx prisma generate
 
-npm run seed
+yarn run seed
 
-npm run dev
+yarn run dev

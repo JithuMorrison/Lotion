@@ -60,14 +60,19 @@ export function PageHeader({
         </div>
       )}
 
-      <div className="mx-auto max-w-3xl px-14 pt-8">
-        <div className="mb-2 flex items-center gap-2">
+      <div className={cn("mx-auto max-w-4xl px-14", coverUrl && icon ? "pt-2" : "pt-8")}>
+        <div className={cn("mb-2 flex items-center gap-2", coverUrl && icon && "-mt-[42px] relative z-10")}>
           <Popover
             align="start"
             trigger={({ toggle }) => (
               <button
                 onClick={toggle}
-                className="flex size-16 items-center justify-center rounded-lg text-5xl hover:bg-muted"
+                className={cn(
+                  "flex items-center justify-center rounded-lg hover:bg-muted",
+                  coverUrl && icon
+                    ? "size-[78px] text-6xl bg-background rounded-xl shadow-sm"
+                    : "size-16 text-5xl"
+                )}
                 aria-label="Change icon"
               >
                 {icon ?? <Smile className="size-7 text-muted-foreground" />}
